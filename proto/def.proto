@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package plugin;
+
+// shell script
+// protoc -Iproto --go_out=plugins=grpc:./plugin ./proto/def.proto
+
+enum DefinedCmd {
+    // 获取终端状态
+    StatusPeer = 0;
+    // 获取raft状态
+    StatusRaft = 1;
+    // leader切换
+    LeaderSwift = 2;
+}
+
+// StatusPeer
+message StatusPeerRequest {}
+message StatusPeerReply {
+    repeated string peers = 1;
+}
+
+// StatusRaft
+message StatusRaftRequest {}
+message StatusRaftReply {
+    string fromRaftAddr = 1;
+    string status = 2;
+}
+
+// LeaderSwift
+message LeaderSwiftRequest {
+    // raft.serverID
+    string svrID = 1;
+}
+message LeaderSwiftReply {}
+//
+
+message CallRequest {
+    string cmd = 1;
+    uint32 id = 2;
+    // 数据存储区
+    bytes data = 3;
+}
+message CallReply {
+    uint32 code = 1;
+    string desc = 2;
+    string cmd = 3;
+    uint32 id = 4;
+    // 数据存储区
+    bytes data = 5;
+}
+
+service ClusterRpc {
+    rpc SimpleCall(CallRequest) returns (CallReply) {}
+}
+
+
