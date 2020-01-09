@@ -1,0 +1,49 @@
+@startuml
+
+package "Cluster Node1" {
+[Gossip] as g1
+[Raft] as r1
+}
+
+package "Cluster Node2" {
+[Gossip] as g2
+[Raft] as r2
+}
+
+package "Cluster Node3" {
+[Gossip] as g3
+[Raft] as r3
+}
+
+g1 <...> g2: join/leave/fail
+g2 <...> g3: join/leave/fail
+g1 <...> g3: join/leave/fail
+
+note left of g1
+1. gossip 协议实现集群节点的Join/Leave
+2. 定时探测(push/pull)节点是否存在
+3. 探测失败，派发Fail消息
+4. 在同一个端口上侦听了UDP和TCP，用于广播处理
+5. 每个节点存储特定的配置tagmap
+end note
+
+r1 <--> r2
+r2 <--> r3
+r1 <--> r3
+
+note right of r3
+1. 根据gossip中tag信息，启动对应的类型(voter/nonvoter)。对应为server/client类型
+2. 启动集群(BootstrapCluster):
+  2.1 如果任何一个节点均未启动，则尝试启动
+  2.2 如果有一个节点已启动，则其他节点不再调用该方法
+3. 如果有节点新加入，则由leader操作(AddVoter/AddNonvoter)
+4. 如果某节点下线或丢失，则有leader操作(RemoveServer/RemovePeer)
+5. 集群模式:
+  5.1 单点模式(如果先启动一台，然后再加入一台，则为多点模式)
+  5.2 多点模式，该模式下节点数量不能低于2台(脑裂)。可监控告警捕获该状态
+6. 集群间通讯采用rpc/grpc
+7. 节点变动，会触发选举过程。多点模式下，推荐节点为奇数台
+end note
+
+
+@enduml
