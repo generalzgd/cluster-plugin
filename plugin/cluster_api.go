@@ -18,7 +18,7 @@ import (
 
 	`github.com/astaxie/beego/logs`
 	`github.com/gin-gonic/gin`
-	`github.com/golang/protobuf/proto`
+	`github.com/golang/protobuf/ptypes`
 )
 
 type ClusterApi struct {
@@ -26,12 +26,12 @@ type ClusterApi struct {
 }
 
 func (p *ClusterApi) Serve(addr string) {
-	//if libs.GetEnvName() != libs.ENV_ONLINE {
-	//	gin.SetMode(gin.DebugMode)
-	//}
+	/*if libs.GetEnvName() != libs.ENV_ONLINE {
+		gin.SetMode(gin.DebugMode)
+	}*/
 
 	r := gin.Default()
-	logs.Debug(r)
+	// logs.Debug(r)
 	r.GET("/agent/list", p.handleList)
 	r.GET("/agent/local", p.handleLocalNode)
 	r.GET("/agent/raft", p.handleRaftNode)
@@ -80,7 +80,7 @@ func (p *ClusterApi) handleState(c *gin.Context) {
 			})
 			if err == nil {
 				obj := StatusRaftReply{}
-				if err := proto.Unmarshal(rep.Data, &obj); err ==nil{
+				if err := ptypes.UnmarshalAny(rep.Data, &obj); err ==nil{
 					list = append(list, obj)
 				}
 			}

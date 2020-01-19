@@ -18,7 +18,7 @@ import (
 	`time`
 
 	`github.com/astaxie/beego/logs`
-	`github.com/golang/protobuf/proto`
+	`github.com/golang/protobuf/ptypes`
 	`google.golang.org/grpc`
 	`google.golang.org/grpc/reflection`
 )
@@ -27,9 +27,9 @@ type RpcHandler func(context.Context, *CallRequest) (*CallReply, error)
 
 func (p *ClusterPlugin) initRpcHandlers() {
 	p.rpcHandlers = map[string]RpcHandler{
-		DefinedCmd_StatusPeer.String():  p.onStatusPeer,
-		DefinedCmd_StatusRaft.String():  p.onStatusRaft,
-		DefinedCmd_LeaderSwift.String(): p.onLeaderSwift,
+		DefinedCmd_StatusPeer.String(): p.onStatusPeer,
+		DefinedCmd_StatusRaft.String(): p.onStatusRaft,
+		// DefinedCmd_LeaderSwift.String(): p.onLeaderSwift,
 	}
 }
 
@@ -60,8 +60,8 @@ func (p *ClusterPlugin) startRpcServer() {
 }
 
 func (p *ClusterPlugin) SimpleCall(ctx context.Context, req *CallRequest) (*CallReply, error) {
-	//pe, _ := peer.FromContext(ctx)
-	//logs.Debug("StatusPeer: req:%v, peer:%v", req, pe)
+	// pe, _ := peer.FromContext(ctx)
+	// logs.Debug("StatusPeer: req:%v, peer:%v", req, pe)
 	//
 
 	f, ok := p.rpcHandlers[req.Cmd]
@@ -84,9 +84,6 @@ func (p *ClusterPlugin) onStatusPeer(ctx context.Context, req *CallRequest) (rep
 		Cmd: req.Cmd,
 		Id:  req.Id,
 	}
-	//pe, _ := peer.FromContext(ctx)
-	//logs.Debug("StatusPeer: req:%v, peer:%v", pe)
-
 	var peers []string
 
 	f := p.raftPointer.GetConfiguration()
@@ -98,10 +95,8 @@ func (p *ClusterPlugin) onStatusPeer(ctx context.Context, req *CallRequest) (rep
 	obj := &StatusPeerReply{
 		Peers: peers,
 	}
-	if buf, err := proto.Marshal(obj); err == nil {
-		rep.Data = buf
-		//} else {
-		//	logs.Error(err)
+	if an, err := ptypes.MarshalAny(obj); err == nil {
+		rep.Data = an
 	}
 	return
 }
@@ -112,22 +107,17 @@ func (p *ClusterPlugin) onStatusRaft(ctx context.Context, req *CallRequest) (rep
 		Id:  req.Id,
 	}
 
-	//pe, _ := peer.FromContext(ctx)
-	//logs.Debug("StatusRaft: req:%v, peer:%v", req, pe)
-
 	obj := &StatusRaftReply{
 		FromRaftAddr: p.args.getRaftAddr(),
 		Status:       p.raftPointer.State().String(),
 	}
-	if buf, err := proto.Marshal(obj); err == nil {
-		rep.Data = buf
-		//} else {
-		//	logs.Error(err)
+	if an, err := ptypes.MarshalAny(obj); err == nil {
+		rep.Data = an
 	}
 	return
 }
 
-func (p *ClusterPlugin) onLeaderSwift(ctx context.Context, req *CallRequest) (rep *CallReply, err error) {
+/*func (p *ClusterPlugin) onLeaderSwift(ctx context.Context, req *CallRequest) (rep *CallReply, err error) {
 	rep = &CallReply{
 		Cmd: req.Cmd,
 		Id:  req.Id,
@@ -137,8 +127,6 @@ func (p *ClusterPlugin) onLeaderSwift(ctx context.Context, req *CallRequest) (re
 	if err := proto.Unmarshal(req.Data, &obj); err == nil {
 		p.CurrentLeaderId = obj.SvrID
 		p.callback.OnLeaderSwift(obj.SvrID)
-		//} else {
-		//	logs.Error(err)
 	}
 	return
-}
+}*/

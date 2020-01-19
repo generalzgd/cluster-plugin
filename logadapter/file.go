@@ -83,7 +83,7 @@ func (p *FileWriter) Write(msg []byte) (n int, err error) {
 	}
 
 	p.Lock()
-	_, err = p.fileWriter.Write([]byte(msg))
+	_, err = p.fileWriter.Write(msg)
 	if err == nil {
 		p.maxLinesCurLines++
 		p.maxSizeCurSize += len(msg)
@@ -125,10 +125,12 @@ func (p *FileWriter) initFd() error {
 	if err != nil {
 		return fmt.Errorf("get stat err: %s", err)
 	}
+	p.Rotate = true
 	p.Daily = true
 	p.MaxLines = 1024000000
 	p.MaxSize = 1024000000
 	p.MaxDays = 3
+	p.MaxFiles = 5
 	p.maxSizeCurSize = int(fInfo.Size())
 	p.dailyOpenTime = time.Now()
 	p.dailyOpenDate = p.dailyOpenTime.Day()
@@ -137,7 +139,8 @@ func (p *FileWriter) initFd() error {
 	p.maxLinesCurLines = 0
 	/*if p.Hourly {
 		go p.hourlyRotate(p.hourlyOpenTime)
-	} else */if p.Daily {
+	} else */
+	if p.Daily {
 		go p.dailyRotate(p.dailyOpenTime)
 	}
 	if fInfo.Size() > 0 && p.MaxLines > 0 {

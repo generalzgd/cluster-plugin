@@ -15,6 +15,10 @@ package "Cluster Node3" {
 [Raft] as r3
 }
 
+g1 -> r1: 节点状态更新
+g2 -> r2: 节点状态更新
+g3 -> r3: 节点状态更新
+
 g1 <...> g2: join/leave/fail
 g2 <...> g3: join/leave/fail
 g1 <...> g3: join/leave/fail

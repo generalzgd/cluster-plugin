@@ -18,11 +18,13 @@ import (
 	`time`
 
 	`github.com/golang/protobuf/proto`
+	`github.com/golang/protobuf/ptypes`
 )
 
 func (p *ClusterPlugin) RpcCall(addr, cmd string, id uint32, msg proto.Message) (*CallReply, error) {
 	if pool, ok := p.rpcPool.Get(addr); ok {
-		buf, err := proto.Marshal(msg)
+		// buf, err := proto.Marshal(msg)
+		an, err := ptypes.MarshalAny(msg)
 		if err == nil {
 			ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 			conn, _ := pool.Get(ctx)
@@ -32,22 +34,18 @@ func (p *ClusterPlugin) RpcCall(addr, cmd string, id uint32, msg proto.Message) 
 			req := &CallRequest{
 				Cmd:  cmd,
 				Id:   id,
-				Data: buf,
+				Data: an,
 			}
 			return client.SimpleCall(ctx, req)
-			//if err != nil || rep == nil {
-			//	logs.Error("Nil")
-			//}
-			//return rep, err
-		//} else {
-		//	logs.Error(err)
 		}
 	}
 	return &CallReply{}, fmt.Errorf("cannot find rpc address")
 }
 
 func (p *ClusterPlugin) leaderSwift(svrId string) {
-	for _, m := range p.serfPointer.Members() {
+	p.CurrentLeaderId = svrId
+	p.callback.OnLeaderSwift(svrId)
+	/*for _, m := range p.serfPointer.Members() {
 		meta := ServerMeta{
 			Name: m.Name,
 			Addr: m.Addr,
@@ -64,5 +62,5 @@ func (p *ClusterPlugin) leaderSwift(svrId string) {
 		if err != nil {
 			continue
 		}
-	}
+	}*/
 }

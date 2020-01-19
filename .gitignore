@@ -1,3 +1,8 @@
 /.idea
+/cluster
+/plugin/7d3460b61b19f422746a93a866fe0530
+/*.exe
 /cluster_plugin
+/cluster-plugin
 /logs
+/logadapter/*.log

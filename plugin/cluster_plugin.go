@@ -26,7 +26,7 @@ import (
 
 	`github.com/astaxie/beego/logs`
 	libs `github.com/generalzgd/comm-libs`
-	`github.com/golang/protobuf/proto`
+	`github.com/golang/protobuf/ptypes`
 	`github.com/hashicorp/memberlist`
 	`github.com/hashicorp/raft`
 	raftboltdb `github.com/hashicorp/raft-boltdb`
@@ -82,7 +82,7 @@ func makeMyLogger(loggerName string) io.WriteCloser {
 	return logger
 }*/
 
-func CreateCluster(args ClusterArgs, callback ClusterCallback) (*ClusterPlugin, error) {
+func CreateCluster(args ClusterArgs, callback ClusterCallback, fsmHandler raft.FSM) (*ClusterPlugin, error) {
 	if err := args.validate(); err != nil {
 		return nil, err
 	}
@@ -167,13 +167,17 @@ func CreateCluster(args ClusterArgs, callback ClusterCallback) (*ClusterPlugin, 
 		return nil, err
 	}
 
+	if fsmHandler == nil {
+		fsmHandler = &fsm{}
+	}
+
 	raftLogger := makeMyLogger("raft")
 	c := raft.DefaultConfig()
 	c.LogOutput = raftLogger // logs.GetBeeLogger()
 	// c.Logger = makeRaftLogger("raft") //
 	// c.LogLevel = "error"
 	c.LocalID = raft.ServerID(raftAddr)
-	r, err := raft.NewRaft(c, &fsm{}, raftDB, raftDB, snapshotStore, trans)
+	r, err := raft.NewRaft(c, fsmHandler, raftDB, raftDB, snapshotStore, trans)
 	if err != nil {
 		logs.Error(err)
 		return nil, err
@@ -304,26 +308,15 @@ func (p *ClusterPlugin) readObserver(ch chan raft.Observation) {
 		case raft.PeerObservation:
 			logs.Info("PeerObservation:", dd)
 			// logs.Info("logs state:", p.raftPointer.String())
-			p.onStateChange(p.raftPointer.State())
 		case raft.LeaderObservation:
 			logs.Info("LeaderObservation:", dd, fmt.Sprintf("%v", d))
+			//
+			p.leaderSwift(string(ob.Raft.Leader()))
 			// logs.Info("logs state:", p.raftPointer.String())
 			p.onStateChange(p.raftPointer.State())
 		}
 	}
 }
-
-/*func (p *ClusterPlugin) readRaftNotify(ch <-chan bool, r *raft.Raft) {
-	for stat := range ch {
-		p.isLeader = stat
-		logs.Info("raft leader stat:", stat)
-		if stat {
-			p.callback.OnImLeader()
-		} else {
-			p.callback.OnImFollower()
-		}
-	}
-}*/
 
 func (p *ClusterPlugin) onStateChange(stat raft.RaftState) {
 	logs.Info("onStateChange: %v => %v, firstChange: %v", p.currentState, stat, p.firstChange)
@@ -345,9 +338,9 @@ func (p *ClusterPlugin) onStateChange(stat raft.RaftState) {
 	case raft.Follower:
 		p.callback.OnImFollower()
 	case raft.Leader:
-		p.callback.OnImLeader()
+		// p.leaderSwift(p.raftAddr)
 		//
-		p.leaderSwift(p.raftAddr)
+		p.callback.OnImLeader()
 	}
 }
 
@@ -438,7 +431,7 @@ func (p *ClusterPlugin) maybeBootstrap() {
 				})
 				if err == nil {
 					obj := StatusPeerReply{}
-					if err := proto.Unmarshal(rep.Data, &obj); err == nil {
+					if err := ptypes.UnmarshalAny(rep.Data, &obj); err == nil {
 						peers = obj.Peers
 					}
 				}
@@ -596,22 +589,3 @@ func (p *ClusterPlugin) onQueryEvent(ev *serf.Query) {
 	}
 	p.callback.OnQuery(ev)
 }
-
-/*func (p *ClusterPlugin) onGetStatusPeer(ev *serf.Query) {
-	var peers []string
-
-	f := p.raftPointer.GetConfiguration()
-	if err := f.Error(); err == nil {
-		for _, s := range f.Configuration().Servers {
-			peers = append(peers, string(s.Address))
-		}
-	}
-	if len(peers) > 0 {
-		bts, err := json.Marshal(peers)
-		if err == nil {
-			ev.Respond(bts)
-			return
-		}
-	}
-	ev.Respond([]byte("[]"))
-}*/
